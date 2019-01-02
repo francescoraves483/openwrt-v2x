@@ -1,0 +1,179 @@
+--- a/drivers/net/wireless/ath/ath5k/base.c
++++ b/drivers/net/wireless/ath/ath5k/base.c
+@@ -287,6 +287,9 @@ static bool ath5k_is_standard_channel(sh
+ 		((chan & 3) == 1 && chan >= 149 && chan <= 165) ||
+ 		/* 802.11j 5.030-5.080 GHz (20MHz) */
+ 		(chan == 8 || chan == 12 || chan == 16) ||
++		/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++		/* 802.11p (10MHz) */
++		(chan == 172) || (chan == 174) || (chan == 176) || (chan == 178) || (chan == 180) || (chan == 182) || (chan == 184) ||
+ 		/* 802.11j 4.9GHz (20MHz) */
+ 		(chan == 184 || chan == 188 || chan == 192 || chan == 196));
+ }
+@@ -1068,7 +1071,14 @@ ath5k_beaconq_config(struct ath5k_hw *ah
+ 		qi.tqi_aifs = 0;
+ 		qi.tqi_cw_min = 0;
+ 		qi.tqi_cw_max = 2 * AR5K_TUNE_CWMIN;
+-	}
++	} else if (ah->opmode == NL80211_IFTYPE_OCB) {
++		/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++		/*
++		 * OCB mode; backoff between 0 and (2 * cw_min).
++		 */
++		qi.tqi_aifs = 0;
++		qi.tqi_cw_min = 0;
++		qi.tqi_cw_max = 2 * AR5K_TUNE_CWMIN; }
+ 
+ 	ATH5K_DBG(ah, ATH5K_DEBUG_BEACON,
+ 		"beacon queueprops tqi_aifs:%d tqi_cw_min:%d tqi_cw_max:%d\n",
+@@ -1436,7 +1446,8 @@ ath5k_receive_frame(struct ath5k_hw *ah,
+ 		ewma_beacon_rssi_add(&ah->ah_beacon_rssi_avg, rs->rs_rssi);
+ 
+ 		/* check beacons in IBSS mode */
+-		if (ah->opmode == NL80211_IFTYPE_ADHOC)
++		/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++		if (ah->opmode == NL80211_IFTYPE_ADHOC || ah->opmode == NL80211_IFTYPE_OCB)
+ 			ath5k_check_ibss_tsf(ah, skb, rxs);
+ 	}
+ 
+@@ -1837,7 +1848,8 @@ ath5k_beacon_setup(struct ath5k_hw *ah,
+ 	antenna = ah->ah_tx_ant;
+ 
+ 	flags = AR5K_TXDESC_NOACK;
+-	if (ah->opmode == NL80211_IFTYPE_ADHOC && ath5k_hw_hasveol(ah)) {
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	if ((ah->opmode == NL80211_IFTYPE_ADHOC || ah->opmode == NL80211_IFTYPE_OCB) && ath5k_hw_hasveol(ah)) {
+ 		ds->ds_link = bf->daddr;	/* self-linked */
+ 		flags |= AR5K_TXDESC_VEOL;
+ 	} else
+@@ -2167,7 +2179,8 @@ ath5k_beacon_config(struct ath5k_hw *ah)
+ 
+ 		ah->imask |= AR5K_INT_SWBA;
+ 
+-		if (ah->opmode == NL80211_IFTYPE_ADHOC) {
++		/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++		if (ah->opmode == NL80211_IFTYPE_ADHOC || ah->opmode == NL80211_IFTYPE_OCB) {
+ 			if (ath5k_hw_hasveol(ah))
+ 				ath5k_beacon_send(ah);
+ 		} else
+@@ -2193,7 +2206,8 @@ static void ath5k_tasklet_beacon(unsigne
+ 	 * transmission time) in order to detect whether
+ 	 * automatic TSF updates happened.
+ 	 */
+-	if (ah->opmode == NL80211_IFTYPE_ADHOC) {
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	if (ah->opmode == NL80211_IFTYPE_ADHOC || ah->opmode == NL80211_IFTYPE_OCB) {
+ 		/* XXX: only if VEOL supported */
+ 		u64 tsf = ath5k_hw_get_tsf64(ah);
+ 		ah->nexttbtt += ah->bintval;
+@@ -2552,7 +2566,8 @@ ath5k_init_ah(struct ath5k_hw *ah, const
+ 		BIT(NL80211_IFTYPE_AP) |
+ 		BIT(NL80211_IFTYPE_STATION) |
+ 		BIT(NL80211_IFTYPE_ADHOC) |
+-		BIT(NL80211_IFTYPE_MESH_POINT);
++		BIT(NL80211_IFTYPE_MESH_POINT) |
++		BIT(NL80211_IFTYPE_OCB); /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
+ 
+ 	hw->wiphy->iface_combinations = &if_comb;
+ 	hw->wiphy->n_iface_combinations = 1;
+--- a/drivers/net/wireless/ath/ath5k/mac80211-ops.c
++++ b/drivers/net/wireless/ath/ath5k/mac80211-ops.c
+@@ -80,7 +80,9 @@ ath5k_add_interface(struct ieee80211_hw
+ 	mutex_lock(&ah->lock);
+ 
+ 	if ((vif->type == NL80211_IFTYPE_AP ||
+-	     vif->type == NL80211_IFTYPE_ADHOC)
++	     vif->type == NL80211_IFTYPE_ADHOC ||
++	     /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	     vif->type == NL80211_IFTYPE_OCB)
+ 	    && (ah->num_ap_vifs + ah->num_adhoc_vifs) >= ATH_BCBUF) {
+ 		ret = -ELNRNG;
+ 		goto end;
+@@ -98,6 +100,7 @@ ath5k_add_interface(struct ieee80211_hw
+ 	case NL80211_IFTYPE_STATION:
+ 	case NL80211_IFTYPE_ADHOC:
+ 	case NL80211_IFTYPE_MESH_POINT:
++	case NL80211_IFTYPE_OCB: /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
+ 		avf->opmode = vif->type;
+ 		break;
+ 	default:
+@@ -111,7 +114,9 @@ ath5k_add_interface(struct ieee80211_hw
+ 	/* Assign the vap/adhoc to a beacon xmit slot. */
+ 	if ((avf->opmode == NL80211_IFTYPE_AP) ||
+ 	    (avf->opmode == NL80211_IFTYPE_ADHOC) ||
+-	    (avf->opmode == NL80211_IFTYPE_MESH_POINT)) {
++	    (avf->opmode == NL80211_IFTYPE_MESH_POINT) ||
++	    /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	    (avf->opmode == NL80211_IFTYPE_OCB)) {
+ 		int slot;
+ 
+ 		WARN_ON(list_empty(&ah->bcbuf));
+@@ -134,6 +139,8 @@ ath5k_add_interface(struct ieee80211_hw
+ 			ah->num_adhoc_vifs++;
+ 		else if (avf->opmode == NL80211_IFTYPE_MESH_POINT)
+ 			ah->num_mesh_vifs++;
++		else if (avf->opmode == NL80211_IFTYPE_OCB)
++			ah->num_mesh_vifs++; /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
+ 	}
+ 
+ 	/* Any MAC address is fine, all others are included through the
+@@ -177,6 +184,8 @@ ath5k_remove_interface(struct ieee80211_
+ 		ah->num_adhoc_vifs--;
+ 	else if (avf->opmode == NL80211_IFTYPE_MESH_POINT)
+ 		ah->num_mesh_vifs--;
++	else if (avf->opmode == NL80211_IFTYPE_OCB)
++		ah->num_mesh_vifs--; /* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
+ 
+ 	ath5k_update_bssid_mask_and_opmode(ah, NULL);
+ 	mutex_unlock(&ah->lock);
+@@ -426,6 +435,11 @@ ath5k_configure_filter(struct ieee80211_
+ 		rfilt |= AR5K_RX_FILTER_PROBEREQ |
+ 			 AR5K_RX_FILTER_BEACON;
+ 		break;
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	case NL80211_IFTYPE_OCB:
++		rfilt |= AR5K_RX_FILTER_PROBEREQ |
++			 AR5K_RX_FILTER_BEACON;
++		break;
+ 	case NL80211_IFTYPE_STATION:
+ 		if (ah->assoc)
+ 			rfilt |= AR5K_RX_FILTER_BEACON;
+@@ -633,7 +647,8 @@ ath5k_reset_tsf(struct ieee80211_hw *hw,
+ 	 * in IBSS mode we need to update the beacon timers too.
+ 	 * this will also reset the TSF if we call it with 0
+ 	 */
+-	if (ah->opmode == NL80211_IFTYPE_ADHOC)
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	if (ah->opmode == NL80211_IFTYPE_ADHOC || ah->opmode == NL80211_IFTYPE_OCB)
+ 		ath5k_beacon_update_timers(ah, 0);
+ 	else
+ 		ath5k_hw_reset_tsf(ah);
+--- a/drivers/net/wireless/ath/ath5k/pcu.c
++++ b/drivers/net/wireless/ath/ath5k/pcu.c
+@@ -670,6 +670,9 @@ ath5k_hw_init_beacon_timers(struct ath5k
+ 		break;
+ 	case NL80211_IFTYPE_ADHOC:
+ 		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	case NL80211_IFTYPE_OCB:
++		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
+ 	default:
+ 		/* On non-STA modes timer1 is used as next DMA
+ 		 * beacon alert (DBA) timer and timer2 as next
+@@ -893,6 +896,16 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah,
+ 		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
+ 		beacon_reg |= AR5K_BCR_ADHOC;
+ 		if (ah->ah_version == AR5K_AR5210)
++			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
++		else
++			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
++		break;
++
++	/* OCB patch by Florian Klingler <klingler@ccs-labs.org>, date Thu Mar 30 16:32:13 2017 +0200 */
++	case NL80211_IFTYPE_OCB:
++		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
++		beacon_reg |= AR5K_BCR_ADHOC;
++		if (ah->ah_version == AR5K_AR5210)
+ 			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+ 		else
+ 			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);

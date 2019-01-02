@@ -1,0 +1,77 @@
+--- a/drivers/net/wireless/ath/ath9k/common-init.c
++++ b/drivers/net/wireless/ath/ath9k/common-init.c
+@@ -86,6 +86,28 @@ static const struct ieee80211_channel at
+ 	CHAN5G(5785, 35), /* Channel 157 */
+ 	CHAN5G(5805, 36), /* Channel 161 */
+ 	CHAN5G(5825, 37), /* Channel 165 */
++
++	/* 802.11p patch by Florian Klingler <klingler@ccs-labs.org>, date Wed Mar 15 17:50:09 2017 +0100 */
++	/* ITS frequencies */
++	CHAN5G(5850, 38), /* Channel 170 */
++	/* ITA-G5B */
++	CHAN5G(5855, 39), /* Channel 171 */
++	CHAN5G(5860, 40), /* Channel 172 */
++	CHAN5G(5865, 41), /* Channel 173 */
++	CHAN5G(5870, 42), /* Channel 174 */
++	/* ITS-G5A */
++	CHAN5G(5875, 43), /* Channel 175 */
++	CHAN5G(5880, 44), /* Channel 176 */
++	CHAN5G(5885, 45), /* Channel 177 */
++	CHAN5G(5890, 46), /* Channel 178 - IEEE CCH */
++	CHAN5G(5895, 47), /* Channel 179 */
++	CHAN5G(5900, 48), /* Channel 180 */
++	CHAN5G(5905, 49), /* Channel 181 */
++	/* ITS-G5D */
++	CHAN5G(5910, 50), /* Channel 182 */
++	CHAN5G(5915, 51), /* Channel 183 */
++	CHAN5G(5920, 52), /* Channel 184 */
++	CHAN5G(5925, 53), /* Channel 185 */
+ };
+ 
+ /* Atheros hardware rate code addition for short premble */
+--- a/drivers/net/wireless/ath/ath9k/hw.h
++++ b/drivers/net/wireless/ath/ath9k/hw.h
+@@ -74,7 +74,8 @@
+ 
+ #define ATH9K_RSSI_BAD			-128
+ 
+-#define ATH9K_NUM_CHANNELS	38
++/* 802.11p patch by Florian Klingler <klingler@ccs-labs.org>, date Wed Mar 15 17:50:09 2017 +0100 */
++#define ATH9K_NUM_CHANNELS	54 /* Increased from 38 to 54, adding all the ITS channels */
+ 
+ /* Register read/write primitives */
+ #define REG_WRITE(_ah, _reg, _val) \
+--- a/drivers/net/wireless/ath/regd.c
++++ b/drivers/net/wireless/ath/regd.c
+@@ -43,13 +43,15 @@ static struct reg_dmn_pair_mapping *ath_
+ 					 NL80211_RRF_NO_IR | \
+ 					 NL80211_RRF_NO_OFDM)
+ 
++/* Register read/write primitives */
++/* 802.11p patch by Florian Klingler <klingler@ccs-labs.org>, date Wed Mar 15 17:50:09 2017 +0100 */
+ /* We allow IBSS on these on a case by case basis by regulatory domain */
+ #define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5240+10, 80, 0, 30, 0),\
+ 				REG_RULE(5260-10, 5350+10, 80, 0, 30,\
+ 					 NL80211_RRF_NO_IR)
+-#define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 80, 0, 30,\
++#define ATH9K_5GHZ_5470_5925	REG_RULE(5470-10, 5925+10, 80, 0, 30,\
+ 					 NL80211_RRF_NO_IR)
+-#define ATH9K_5GHZ_5725_5850	REG_RULE(5725-10, 5850+10, 80, 0, 30,\
++#define ATH9K_5GHZ_5725_5925	REG_RULE(5725-10, 5925+10, 80, 0, 30,\
+ 					 NL80211_RRF_NO_IR)
+ 
+ #define ATH9K_2GHZ_ALL		ATH9K_2GHZ_CH01_11, \
+@@ -57,11 +59,11 @@ static struct reg_dmn_pair_mapping *ath_
+ 				ATH9K_2GHZ_CH14
+ 
+ #define ATH9K_5GHZ_ALL		ATH9K_5GHZ_5150_5350, \
+-				ATH9K_5GHZ_5470_5850
++				ATH9K_5GHZ_5470_5925
+ 
+ /* This one skips what we call "mid band" */
+ #define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
+-				ATH9K_5GHZ_5725_5850
++				ATH9K_5GHZ_5725_5925
+ 
+ #define REGD_RULES(...) \
+ 	.reg_rules = { __VA_ARGS__ }, \

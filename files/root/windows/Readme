@@ -1,0 +1,2 @@
+This file must be run on a host windows system (with PuTTY installed) in order to capture datagrams directly with Wireshark for Windows.
+It is using tcpdump which output is piped to Wireshark.

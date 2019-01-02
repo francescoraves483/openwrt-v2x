@@ -1,0 +1,11 @@
+--- a/Makefile
++++ b/Makefile
+@@ -25,7 +25,7 @@ OBJS-$(HWSIM) += hwsim.o
+ 
+ OBJS += $(OBJS-y) $(OBJS-Y)
+ 
+-OBJS_DISABLED = ocb offch cqm wowlan coalesce roc p2p ap
++OBJS_DISABLED = offch cqm wowlan coalesce roc p2p ap
+ OBJS:=$(filter-out $(patsubst %,%.o,$(OBJS_DISABLED)),$(OBJS))
+ ALL = iw
+ 
