@@ -1,8 +1,10 @@
-This is a patched version of OpenWrt 18.06.1, in order to enable support to specific V2X (Vehicle-to-everything) features, including 802.11p channel usage and EDCA priority queueus.
+This is a patched version of OpenWrt 18.06.1, in order to enable support to specific V2X (Vehicle-to-everything) features, including 802.11p channel usage and EDCA priority queueus. 
+
+**It is designed to work with NICs supported by the ath5k and ath9k drivers (e.g. UNEX DHXA-222, UNEX DCMA 86P2, ...). Other devices will probably need an additional driver-level patching work.**
 
 Several patches are heavily based on patches provided by the OpenC2X-embedded platform, by Florian Klingler and the CCS Labs team in University of Paderborn: http://www.ccs-labs.org/software/openc2x/
 
-It has been successfully tested, in Politecnico di Torino, using PC Engines APU1D boards, together with Unex DHXA-222 WLAN cards, supported by the "ath9k" driver; other platforms should be correctly supported too.
+It has been successfully tested, in Politecnico di Torino, using PC Engines APU1D boards, together with Unex DHXA-222 WLAN cards, supported by the **ath9k** driver; other platforms should be correctly supported too.
 
 A patch to the iPerf 2 network measurement tool is included, enabling support to the 4 MAC layer EDCA queues. The -A option, which is client specific, can now be used to specify a traffic class at which the outcoming flow should be sent at (-A BK or -A BE or -A VI or -A VO). Not specifying any traffic class leaves the options as if a standard iPerf 2 package was used (i.e. effectively using AC_BE).
 
@@ -107,6 +109,29 @@ If bash is available (as in the included APU1D configuration), you can start usi
 bash
 ```
 
+**Automating the initial iw_startup setup**
+
+The script to initialize the wireless system can be automatically launched at startup, together with any other custom command, allowing the boards to start using 802.11p frequencies without any explicit call to an initialization script.
+
+To do so, edit the "/etc/rc.local" file and add the line:
+```
+/root/iw_startup
+```
+This line should be added before `exit 0`.
+
+The iw_startup script is set to initially configure the system to use channel 178 (the IEEE "CCH"), with a transmission power (_txpower_) of 15 dBm and a physical data rate of 3 Mbit/s.
+
+You can freely customize this behaviour by editing the lines (please note that the power is specified in mBm and the bitrate as the double of the desired one, due to pathed half rate operations in 802.11p):
+```
+echo "Set Frequency 5890 MHz (CCH) and channel width 10MHz (802.11p)"
+iw dev wlan0 ocb join 5890 10MHz
+echo "IP address set to 10.10.6.102"
+ifconfig wlan0 10.10.6.102 netmask 255.255.0.0
+echo "Set Rate 3M and Power 15 dBm, using iw"
+iw dev wlan0 set bitrates legacy-5 6
+iw dev wlan0 set txpower fixed 1500
+```
+
 **Setting up chrony for NTP synchronization**
 
 The included APU1D configuration already selects the "chrony" package to be included in the final image. It can be used to efficiently synchronize the date and time on the target boards thanks to NTP.
@@ -126,3 +151,20 @@ service sysntpd disable
 service chronyd enable
 reboot
 ```
+
+**Broadcast communication problem when using ACs different than AC_BE**
+
+This system should work properly and let you transmit over different ACs using the DSRC frequencies.
+There is still, however, one problem that has not been solved yet.
+
+The problem is basically due to the fact that, when using recent versions of the Linux kernel (as in OpenWrt 18.06.1, with kernel 4.14.63), only one priority queue can be used as far as broadcast communication is concerned, at least when a certain category of drivers is used.
+
+When sending broadcasted data, only _AC_BE_ can be used, no matter the AC that the user is trying to set in his or her application; this seems to happen every time a broadcast destination MAC address is used (_FF:FF:FF:FF:FF:FF_), sending out packet which will not be acknowledged by any device, even though they are properly received.
+Instead, when sending unicast data, everything works fine and all the queues should be used (when using **ath9k** you can view the queue status for each AC by querying the file "/sys/kernel/debug/ieee80211/phy0/ath9k/xmit").
+
+The problem is due to the introduction of the so-called _intermediate software queues_ inside _mac80211_, for supported drivers (more details are available here: https://patchwork.kernel.org/patch/6111801/). **ath9k** is actually one of the drivers supporting the _intermediate software queues_.
+
+This feature was introduced to move the queuing implementation more towards the software side of the wireless subsystem, allowing the hardware to keep only short queues and enabling also more fairness between stations which are communicating, since these queues, when in sending unicast data, are kept for each station or VIF entry.
+
+However, only one intermediate queue is actually allocated for multicast and the supported drivers are coded in order to manage this single queue, making it impossible to send multicast packets over _AC_BK_, _AC_VI_, _AC_VO_ without coding additional, multi-level, patches. 
+We are currently investigating and working on this problem.
