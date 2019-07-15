@@ -1,10 +1,10 @@
 This is a patched version of OpenWrt 18.06.1, in order to enable support to specific V2X (Vehicle-to-everything) features, including 802.11p channel usage and EDCA priority queueus. 
 
-**It is designed to work with NICs supported by the ath5k and ath9k drivers (e.g. UNEX DHXA-222, UNEX DCMA 86P2, ...). Other devices will probably need an additional driver-level patching work.**
+**It is designed to work with NICs supported by the ath5k and ath9k drivers (e.g. UNEX DHXA-222, UNEX DCMA 86P2, ...). We are working in enabling more NICs to be supported: for instance, ath10k support is planned.**
 
-Several patches are heavily based on patches provided by the OpenC2X-embedded platform, by Florian Klingler and the CCS Labs team in University of Paderborn: http://www.ccs-labs.org/software/openc2x/
+Several patches are heavily based on patches provided by the OpenC2X-embedded platform, by Florian Klingler, Gurjashan Singh Pannu and the CCS Labs team in University of Paderborn: http://www.ccs-labs.org/software/openc2x/
 
-It has been successfully tested, in Politecnico di Torino, using PC Engines APU1D boards, together with Unex DHXA-222 WLAN cards, supported by the **ath9k** driver; other platforms should be correctly supported too.
+It has been successfully tested, in Politecnico di Torino, using PC Engines APU1D boards, together with Unex DHXA-222 WLAN cards, supported by the *ath9k* driver; other platforms should be correctly supported too.
 
 A patch to the iPerf 2 network measurement tool is included, enabling support to the 4 MAC layer EDCA queues. The -A option, which is client specific, can now be used to specify a traffic class at which the outcoming flow should be sent at (-A BK or -A BE or -A VI or -A VO). Not specifying any traffic class leaves the options as if a standard iPerf 2 package was used (i.e. effectively using AC_BE).
 
@@ -168,3 +168,11 @@ This feature was introduced to move the queuing implementation more towards the 
 
 However, only one intermediate queue is actually allocated for multicast and the supported drivers are coded in order to manage this single queue, making it impossible to send multicast packets over _AC_BK_, _AC_VI_, _AC_VO_ without coding additional, multi-level, patches. 
 We are currently investigating and working on this problem.
+
+**docs directory**
+
+Inside this repository, you will find a **docs** directory, which contains short guides (typically, as PDF files) to perform additional setup steps with OpenWrt-V2X and enable additional features.
+
+At the moment, the following guides are available:
+
+- *Setting up relayd bridge 802_11p.pdf*: short guide to setup the *relayd* package, making the devices running OpenWrt-V2X act as 802.11p dongles with respect to other devices connected to them through an Ethernet interface. All the traffic will be transparently forwarded from the ethernet interface to the wireless 802.11p one (in OCB mode), allowing to extend the connectivity of devices which would otherwise be unable to communicate at 5.8/5.9 GHz, with 10 MHz wide channels and in OCB mode. Reference hardware: PC Engines APU1D boards.
