@@ -1,0 +1,26 @@
+--- a/drivers/net/wireless/ath/ath5k/base.c
++++ b/drivers/net/wireless/ath/ath5k/base.c
+@@ -322,6 +322,23 @@ ath5k_setup_channels(struct ath5k_hw *ah
+ 	for (ch = 1; ch <= size && count < max; ch++) {
+ 		freq = ieee80211_channel_to_frequency(ch, band);
+ 
++		/* ITS-G5D fix: added by Politecnico di Torino to enable channels 182
++		   and 184 on UNEX DCMA 86P2 cards */
++		if(ch == 182 || ch == 184) {
++			switch(ch) {
++				case 182:
++					freq=5910;
++				break;
++				case 184:
++					freq=5920;
++				break;
++				default:
++				break;
++			}
++		} else {
++			freq = ieee80211_channel_to_frequency(ch, band);
++		}
++
+ 		if (freq == 0) /* mapping failed - not a standard channel */
+ 			continue;
+ 
