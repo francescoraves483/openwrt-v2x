@@ -1,0 +1,28 @@
+#!/bin/sh
+
+echo "Waiting 5 seconds..."
+sleep 5
+echo "Pacthed Italian Frequency Register Set"
+iw reg set IT
+sleep 1
+echo "Turn off wlan0"
+ifconfig wlan0 down
+sleep 1
+echo "Set Mode OCB"
+iw dev wlan0 set type ocb
+echo "Turn on wlan0"
+ifconfig wlan0 up
+sleep 1
+echo "Leave possibile OCB..."
+iw dev wlan0 ocb leave 
+echo "Set Frequency 5890 MHz (CCH) and channel width 10MHz (802.11p)"
+iw dev wlan0 ocb join 5890 10MHz
+echo "IP address set to 10.10.6.102"
+ifconfig wlan0 10.10.6.102 netmask 255.255.0.0
+echo "Set Rate 3M and Power 15 dBm, using iw"
+iw dev wlan0 set bitrates legacy-5 6
+iw dev wlan0 set txpower fixed 1500
+echo "Completing configuration, waiting 8 seconds..."
+sleep 8
+echo "Configured as: "
+iw dev

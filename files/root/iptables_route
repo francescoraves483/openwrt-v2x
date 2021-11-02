@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Check correct parameter usage and eventually flush the mangle table
+if [ $# -ne 3 ]
+then
+	if [ $# -eq 1 -a $1 = 'flush' ]
+	then
+		echo "Flushing mangle table..."
+		iptables -t mangle -F
+	else
+		echo "Error using program. Expected two parameters."
+		echo "1)	IP address to monitor (IP or 'any')"
+		echo "2)	IP address of the PC running Wireshark"
+		echo "3) 	Interface to be used (for ex. wlan0)"
+		echo "One parameter only is accepted only if it is 'flush'"
+		echo " to flush the whole iptables mangle table"
+	fi
+	exit 1
+fi
+
+# Check if the required package iptables is installed.
+# If it is not, abort the execution. 
+# You can install it by using opkg install iptables.
+opkg list | grep -w "iptables" >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+    echo "iptables is not installed. Please install it before proceeding further."
+    exit 1
+fi
+
+# Check if the required package iptables-mod-tee is installed.
+# If it is not, abort the execution. 
+# You can install it by using opkg install iptables-mod-tee.
+opkg list | grep "iptables-mod-tee" >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+    echo "iptables-mod-tee is not installed. Please install it before proceeding further."
+    exit 1
+fi
+
+# $1 - IP of device to monitor
+# $2 - IP of gateway (i.e. of the PC running Wireshark)
+echo "Setting POSTROUTING..."
+if [ $1 = 'any' ]
+then
+	iptables -t mangle -A POSTROUTING -o $3 -j TEE --gateway $2
+else
+	iptables -t mangle -A POSTROUTING -o $3 -s $1 -j TEE --gateway $2
+fi
+if [ $? -eq 0 ]
+then
+    echo "Done."
+else
+    echo "iptables -t mangle -A POSTROUTING <...> reported an error. The script will terminate now."
+    exit 1
+fi
+echo "Setting PREROUTING..."
+if [ $1 = 'any' ]
+then
+	iptables -t mangle -A PREROUTING -i $3 -j TEE --gateway $2
+else
+	iptables -t mangle -A PREROUTING -i $3 -d $1 -j TEE --gateway $2
+fi
+if [ $? -eq 0 ]
+then
+    echo "Done."
+else
+    echo "iptables -t mangle -A PREROUTING <...> reported an error. The script will terminate now."
+    exit 1
+fi
+
+echo "iptables routing has been configured for $3 on mangle table, using TEE package."
+echo "On wireshark, connect to the network corresponding to $2."
+if [ $1 != 'any' ]
+then
+echo "You can use as filter:	(ip.src == $1) || (ip.dst == $1)"
+fi
