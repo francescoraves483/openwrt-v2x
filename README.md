@@ -33,7 +33,7 @@ cp configs/config_APU.config .config
 ```
 cp configs/config_APU2_full.config .config
 ```
-* Run "make menuconfig" and select a target (for instance, x86/x86_64, as when targeting the APU1D boards), then set a default config (the target should be already selected if you are using the "config_APU.config"/"config_APU2_full.config" configuration):
+* Run "make menuconfig" and select a target (for instance, x86/x86_64, as when targeting the APU1D or APU2 boards), then set a default config (the target should be already selected if you are using the "config_APU.config"/"config_APU2_full.config" configuration):
 ```
 make menuconfig
 make defconfig
@@ -58,20 +58,29 @@ Once the system has been downloaded into the target embedded board and after reb
 ```
 vi /etc/config/network
 ```
-* Comment out the lines about 'bridge' and 'ip6assign' adding a # in front of them
-* Add the following line, replacing '192.168.1.1' with your gateway IP address. This is needed to let the boards connect to the Internet through Ethernet, for instance to run "opkg" and update/install packages.
+* Comment out the Ethernet bridge section by adding # in front of all the lines belonging to the same section:
 ```
-option gateway '192.168.1.1'
+#config device
+#       option name 'br-lan'
+#       option type 'bridge'
+#       list ports 'eth1'
+#       list ports 'eth2'
 ```
-* Choose an Ethernet port, if more than one is specified, by writing its name after "option ifname" (we chose the "eth2" port for our APU boards):
+* Locate the section `config interface 'lan'` and comment out the lines about 'bridge' (if present) and 'ip6assign' adding a # in front of them
+* In the same section, choose an Ethernet interface to be configured for SSH access, by writing its name after "option ifname" (we chose the "eth2" port for our APU boards), and replacing the actual interface name:
 ```
 option ifname 'eth2'
 ```
-* Choose an IP address, belonging to a proper subnet, for the Ethernet port: this is the address that you will need to specify when connecting a development PC to the boards using SSH (for instance, with PuTTY on Windows, or directly with ssh on Linux):
+* You have now two options: you can either comment out the `ipaddr` and `netmask` lines, and specify `option proto 'dhcp'` to use DHCP and automatically get an IP address, if applicable, or keep these two lines, making sure that `option proto 'static'` is specified. In this case the IP address will be manually set.
+* In case of manual IP address configuration, add the following line, replacing '192.168.1.1' with your gateway IP address. This is needed to let the boards connect to the Internet through Ethernet, for instance to run "opkg" and update/install packages.
+```
+option gateway '192.168.1.1'
+```
+* In case of manual IP address configuration, choose an IP address, belonging to a proper subnet, for the Ethernet port: this is the address that you will need to specify when connecting a development PC to the boards using SSH (for instance, with PuTTY on Windows, or directly with `ssh` on Linux):
 ```
 option ipaddr '192.168.1.182'
 ```
-* The following steps can then be performed through serial console or by opening an SSH connection with the aforementioned IP address; in the second case, you will need to connect the boards directly to the PC or (better) to a local network at which the PC is connected too. You will then have to login with "root" as user name (no password has been set, you can choose one with "passwd" later on).
+* The following steps can then be performed through serial console or by opening an SSH connection with the proper Ethernet port IP address; in the second case, you will need to connect the boards directly to the PC or (better) to a local network at which the PC is connected too. You will then have to login with "root" as user name (no password has been set, you can choose one with "passwd" later on).
 * Enable Wi-Fi in "/etc/config/wireless" by editing the file and setting:
 ```
 option disabled '0'
@@ -129,7 +138,7 @@ This line should be added before `exit 0`.
 
 The iw_startup script is set to initially configure the system to use channel 178 (the IEEE "CCH"), with a transmission power (_txpower_) of 15 dBm and a physical data rate of 3 Mbit/s.
 
-You can freely customize this behaviour by editing the lines (please note that the power is specified in mBm and the bitrate as the double of the desired one, due to pathed half rate operations in 802.11p):
+You can freely customize this behaviour by editing the lines (please note that the power is specified in mBm and the bitrate as the double of the desired one, due to patched half rate operations in 802.11p):
 ```
 echo "Set Frequency 5890 MHz (CCH) and channel width 10MHz (802.11p)"
 iw dev wlan0 ocb join 5890 10MHz
@@ -138,6 +147,38 @@ ifconfig wlan0 10.10.6.102 netmask 255.255.0.0
 echo "Set Rate 3M and Power 15 dBm, using iw"
 iw dev wlan0 set bitrates legacy-5 6
 iw dev wlan0 set txpower fixed 1500
+```
+
+**Setting an IEEE 802.11p physical data rate/modulation**
+
+Normally, the user can set the physical data rate by leveraging the `iw` tool, and specifying:
+```
+iw dev wlan0 set bitrates legacy-5 <double of the desired bitrate value in Mbit/s>
+```
+This is also the procedure implemented in `iw_startup` to set an initial data rate to 3 Mbit/s, and this command can also be used in standard OpenWrt installations to set a desidered data rate with, for instance, other 802.11n or 802.11ac cards.
+
+Unfortunately, we found out that this is not always possible with 802.11p and OCB mode, at least for certain desidered physical data rates, due to `iw` returning "Invalid argument (-22)" errors.
+These errors, and thus the selectable physical data rates, seem also to be dependant on the actual hardware and chipset revision, and on how it "reacts" after the physical data rate change request.
+
+Concerning the DHXA-222 cards, `iw dev wlan0 set bitrates legacy-5` lets the user select any of the mandatory physical data rates for IEEE 802.11p, as specified in IEEE 802.11-2020, i.e., either 3 Mbit/s (`iw dev wlan0 set bitrates legacy-5 6`), or 6 Mbit/s (`iw dev wlan0 set bitrates legacy-5 12`), or 12 Mbit/s (`iw dev wlan0 set bitrates legacy-5 24`).
+
+With other cards, however, this is not always guaranteed to work. If it happens that you card does not let you select at least the mandatory rates, you should be able to rely on a workaround, which involves forcing a fixed data rate index in the Minstrel rate adapation algorithm used by Linux.
+
+You can set a desired fixed data rate with:
+```
+echo <index> > /sys/kernel/debug/ieee80211/phy0/rc/fixed_rate_idx
+```
+
+Finding the right indeces for the IEEE 802.11p rates may require a bit of work (the values are not so well documented, and may also be driver dependant - we are, however, investigating this point!). The following are some values we found, with the corresponding IEEE 802.11p data rates, for some AR9642-based mPCIe cards we tested (i.e., Atheros AR5B22):
+```
+  |INDEX|  -> |PHYS. DATA RATE|
+4294967288 ->     3 Mbit/s
+4294967289 ->   4.5 Mbit/s
+4294967290 ->     6 Mbit/s
+4294967291 ->     9 Mbit/s
+4294967292 ->    12 Mbit/s
+4294967293 ->    18 Mbit/s
+4294967294 ->    24 Mbit/s
 ```
 
 **Setting up chrony for NTP synchronization**
