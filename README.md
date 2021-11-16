@@ -9,10 +9,6 @@ It has also been tested on APU2 boards and few other AR9642-based mPCIe 802.11a/
 
 A patch to the iPerf 2 network measurement tool is included, enabling support to the 4 MAC layer EDCA queues. The -A option, which is client specific, can now be used to specify a traffic class at which the outcoming flow should be sent at (-A BK or -A BE or -A VI or -A VO). Not specifying any traffic class leaves the options as if a standard iPerf 2 package was used (i.e. effectively using AC_BE).
 
-Inside the "testedplatform" folder you will also find a pre-compiled image (the one which we used for most, if not all, our tests), targeted at x86_64 systems and in particular at the APU1D boards. It can be used in case you encounter problems with the compilation and you need a readily available image. It may also work on other x86_64 platforms, but it has not been tested.
-
-**Warning: the "testedplatform" images are still including OpenWrt 18.06.1. New pre-compiled images with OpenWrt 21.02.1 are coming soon.**
-
 In order to build the system:
 * Clone the default branch (OpenWrt-V2X-21.02.1) of the repository with git clone on a Linux machine (Linux Mint 18 and 19, Ubuntu 18 LTS and 20 LTS have been successfully tested):
 ```
