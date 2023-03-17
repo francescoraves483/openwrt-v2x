@@ -12,5 +12,6 @@ if [ ! -d "../feeds/packages/net/iperf/patches" ]; then
 fi
 
 cp ./iperf/*.patch ../feeds/packages/net/iperf/patches
+yes | cp -rf ./python-cryptography/*.patch ../feeds/packages/lang/python/python-cryptography/patches
 
 echo "Patches copied. Thank you!"
