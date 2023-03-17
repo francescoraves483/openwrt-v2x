@@ -1,0 +1,13 @@
+--- a/src/third_party/doctest.h
++++ b/src/third_party/doctest.h
+@@ -54,6 +54,10 @@
+ #define DOCTEST_VERSION                                                                            \
+     (DOCTEST_VERSION_MAJOR * 10000 + DOCTEST_VERSION_MINOR * 100 + DOCTEST_VERSION_PATCH)
+ 
++// glibc 2.34+ fix
++#undef SIGSTKSZ
++#define SIGSTKSZ 32768
++
+ // =================================================================================================
+ // == COMPILER VERSION =============================================================================
+ // =================================================================================================
