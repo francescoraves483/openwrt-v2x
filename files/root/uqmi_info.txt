@@ -1,0 +1,4 @@
+----- This applies only to OpenWrt-V2X build for an x86_64 architecture! -----
+- If you experience any issue with an LTE/cellular module, try updating the already installed uqmi package with the .ipk included in this directory (uqmi_2022-11-29-0.10_x86_64.ipk).
+- If you still experience issues, you can try replacing /lib/netifd/proto/qmi.sh with the qmi.sh script included inside "updated_qmi_script".
+- If you do not experience any issue when using an LTE/cellular module with OpenWrt-V2X, there is no need to update the uqmi package, nor to replace the qmi.sh script with the enhanced version available inside "updated_qmi_script".

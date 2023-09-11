@@ -27,10 +27,12 @@ cd OpenWrt-V2X
 ```
 cp configs/config_APU.config .config
 ```
-* Or, if you are using APU2 boards (e.g., APU2E4), you can selected the following tested configuration (you can also opt for configuration with less pre-included packages, by copying the file `config_APU2.config`):
+* Or, if you are using APU2 boards (e.g., APU2E4), you can select the following tested configuration (you can also opt for configuration with less pre-included packages, by copying the file `config_APU2.config`):
 ```
-cp configs/config_APU2_full.config .config
+cp configs/config_APU2_full_v3.config .config
 ```
+This configuration builds a final image which already includes several packages, for instance for LTE modules and CAN bus/GNSS support.
+If you need a ligher set of pre-included packages (for instance without full LTE modules and CAN bus support), but with more packages than `config_APU2.config`, you can also copy the file `config_APU2_full.config`.
 * Run "make menuconfig" and select a target (for instance, x86/x86_64, as when targeting the APU1D or APU2 boards), then set a default config (the target should be already selected if you are using the "config_APU.config"/"config_APU2_full.config" configuration):
 ```
 make menuconfig
