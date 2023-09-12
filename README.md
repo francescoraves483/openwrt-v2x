@@ -29,7 +29,7 @@ cp configs/config_APU.config .config
 ```
 * Or, if you are using APU2 boards (e.g., APU2E4), you can select the following tested configuration (you can also opt for configuration with less pre-included packages, by copying the file `config_APU2.config`):
 ```
-cp configs/config_APU2_full_v3.config .config
+cp configs/config_APU2_full_v4.config .config
 ```
 This configuration builds a final image which already includes several packages, for instance for LTE modules and CAN bus/GNSS support.
 If you need a ligher set of pre-included packages (for instance without full LTE modules and CAN bus support), but with more packages than `config_APU2.config`, you can also copy the file `config_APU2_full.config`.
